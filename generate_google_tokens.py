@@ -24,19 +24,19 @@ SCOPES = [
 ]
 
 def main():
-    print("=" * 65)
-    print("🔑 GÉNÉRATION DU JETON GOOGLE OAUTH2 (CALENDAR & DRIVE)")
-    print("=" * 65)
+    print("=" * 65, flush=True)
+    print("🔑 GÉNÉRATION DU JETON GOOGLE OAUTH2 (CALENDAR & DRIVE)", flush=True)
+    print("=" * 65, flush=True)
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
 
     # Si credentials.json existe, on l'utilise, sinon on construit la config à partir du .env
     if os.path.exists("credentials.json"):
-        print("📄 Lecture de credentials.json...")
+        print("📄 Lecture de credentials.json...", flush=True)
         flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
     elif client_id and client_secret:
-        print("⚙️ Utilisation des identifiants GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET depuis .env...")
+        print("⚙️ Utilisation des identifiants GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET depuis .env...", flush=True)
         client_config = {
             "installed": {
                 "client_id": client_id,
@@ -48,12 +48,12 @@ def main():
         }
         flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
     else:
-        print("❌ Erreur : Ni credentials.json ni les variables GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET ne sont disponibles.")
+        print("❌ Erreur : Ni credentials.json ni les variables GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET ne sont disponibles.", flush=True)
         sys.exit(1)
 
-    print("\n🌐 Un onglet de votre navigateur va s'ouvrir pour vous connecter.")
-    print("👉 Connectez-vous avec votre compte Google et acceptez les autorisations (Calendar & Drive).")
-    print("⏳ En attente de l'autorisation dans le navigateur...\n")
+    print("\n🌐 Un onglet de votre navigateur va s'ouvrir pour vous connecter.", flush=True)
+    print("👉 Connectez-vous avec votre compte Google et acceptez les autorisations (Calendar & Drive).", flush=True)
+    print("⏳ En attente de l'autorisation dans le navigateur...\n", flush=True)
 
     # Lance le serveur local pour capturer le retour OAuth (prompt=consent force l'obtention du refresh token)
     creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
