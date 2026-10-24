@@ -242,11 +242,24 @@ Sois synthétique, réactif et rigoureux.
 # =====================================================================
 # APPLICATION WEB ASGI / FASTAPI (agent.to_web)
 # =====================================================================
+render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
+allowed_hosts = [
+    "localhost",
+    "127.0.0.1",
+    "agnet-tolling.onrender.com",
+    "*.onrender.com",
+    "*"
+]
+if render_hostname and render_hostname not in allowed_hosts:
+    allowed_hosts.append(render_hostname)
+
 app = agent.to_web(
     models={
         f"🧠 GPT-4o ({openrouter_model_name})": main_model,
     },
     instructions="Agent IA personnel avec Tool Calling - Service unifié Front + Back",
+    allowed_hosts=allowed_hosts,
 )
 
 def main():

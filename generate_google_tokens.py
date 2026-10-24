@@ -37,17 +37,24 @@ def main():
         print("📄 Lecture de credentials.json...", flush=True)
         flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
     elif client_id and client_secret:
-        print("⚙️ Utilisation des identifiants GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET depuis .env...", flush=True)
+        print("⚙️ Configuration OAuth 2.0 (compatible Web et Desktop)...", flush=True)
+        # Structure supportant les clients de type Web et Desktop
         client_config = {
-            "installed": {
+            "web": {
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": ["http://localhost"]
+                "redirect_uris": [
+                    "http://localhost:8080/",
+                    "http://localhost:8080",
+                    "http://127.0.0.1:8080/",
+                    "http://localhost"
+                ]
             }
         }
         flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+        flow.redirect_uri = "http://localhost:8080/"
     else:
         print("❌ Erreur : Ni credentials.json ni les variables GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET ne sont disponibles.", flush=True)
         sys.exit(1)
@@ -56,8 +63,8 @@ def main():
     print("👉 Connectez-vous avec votre compte Google et acceptez les autorisations (Calendar & Drive).", flush=True)
     print("⏳ En attente de l'autorisation dans le navigateur...\n", flush=True)
 
-    # Lance le serveur local pour capturer le retour OAuth (prompt=consent force l'obtention du refresh token)
-    creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
+    # Lance le serveur local sur le port fixe 8080 pour correspondre exactement à l'URI de redirection
+    creds = flow.run_local_server(port=8080, prompt="consent", access_type="offline")
 
     refresh_token = creds.refresh_token
     if not refresh_token:
