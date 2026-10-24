@@ -20,12 +20,13 @@ load_dotenv()
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/gmail.send"
 ]
 
 def main():
     print("=" * 65, flush=True)
-    print("🔑 GÉNÉRATION DU JETON GOOGLE OAUTH2 (CALENDAR & DRIVE)", flush=True)
+    print("🔑 GÉNÉRATION DU JETON GOOGLE OAUTH2 (CALENDAR, DRIVE & GMAIL API)", flush=True)
     print("=" * 65, flush=True)
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
