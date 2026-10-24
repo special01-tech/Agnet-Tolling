@@ -1,0 +1,18 @@
+# Core Framework
+pydantic-ai==2.61.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-dotenv>=1.0.1
+
+# AI & LLM Providers (OpenRouter / OpenAI compatible)
+openai>=1.50.0
+
+# Tools & Web APIs
+requests>=2.32.0
+tavily-python>=0.5.0
+trafilatura>=2.0.0
+
+# Google Calendar & Google Drive API
+google-api-python-client>=2.150.0
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.0
