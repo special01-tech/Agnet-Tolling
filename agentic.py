@@ -57,6 +57,27 @@ main_model = OpenAIChatModel(
 logger.info(f"✅ Modèle configuré : {openrouter_model_name} via {openrouter_base_url}")
 
 # =====================================================================
+# TRACKING & AUDIT DE DÉMARRAGE DES OUTILS CONNECTÉS
+# =====================================================================
+has_tavily = bool(os.getenv("TAVILY_API_KEY"))
+has_weather = bool(os.getenv("OPENWEATHER_API_KEY") or os.getenv("GETWEATHER_API_KEY"))
+has_notion = bool(os.getenv("NOTION_API_KEY"))
+has_google = bool(os.getenv("GOOGLE_REFRESH_TOKEN"))
+allowed_recip = os.getenv("ALLOWED_EMAIL_RECIPIENT", "Non configuré")
+
+logger.info("=" * 65)
+logger.info("🛰️ TRACKING DES OUTILS ET CONNEXIONS DISPONIBLES :")
+logger.info(f"  • Modèle IA (OpenRouter) : {'✅ Connecté' if openrouter_api_key else '❌ Clé manquante'}")
+logger.info(f"  • Recherche Web (Tavily) : {'✅ Connecté' if has_tavily else '❌ Non configuré'}")
+logger.info(f"  • Météo (OpenWeather)    : {'✅ Connecté' if has_weather else '❌ Non configuré'}")
+logger.info(f"  • Notion API             : {'✅ Connecté' if has_notion else '❌ Non configuré'}")
+logger.info(f"  • Google Calendar        : {'✅ Connecté (OAuth)' if has_google else '❌ Non configuré'}")
+logger.info(f"  • Google Drive           : {'✅ Connecté (OAuth)' if has_google else '❌ Non configuré'}")
+logger.info(f"  • Gmail API (HTTPS)      : {'✅ Connecté (OAuth)' if has_google else '❌ Non configuré'}")
+logger.info(f"  • Destinataire Autorisé  : {allowed_recip}")
+logger.info("=" * 65)
+
+# =====================================================================
 # INITIALISATION DE L'AGENT PYDANTIC-AI
 # =====================================================================
 agent = Agent(main_model)
@@ -83,34 +104,42 @@ from tools.drive_tool import (
 )
 
 # =====================================================================
-# ENREGISTREMENT DES OUTILS SUR L'AGENT (@agent.tool_plain)
+# ENREGISTREMENT DES OUTILS SUR L'AGENT (@agent.tool_plain) AVEC LOGGING
 # =====================================================================
 
 # 1. Recherche Web (Tavily)
 @agent.tool_plain
 async def search_web_tool(query: str, max_results: int = 5) -> str:
     """Recherche web en temps réel avec Tavily. Fournit les sources et liens vérifiés."""
-    logger.info(f"🔍 Recherche web: {query}")
-    return tavily_search(query, max_results)
+    logger.info(f"🔍 [TAVILY] Recherche web lancée: '{query}' (max_results={max_results})")
+    res = tavily_search(query, max_results)
+    logger.info(f"🔍 [TAVILY] Recherche terminée (longueur réponse: {len(res)} caractères)")
+    return res
 
 # 2. Météo (OpenWeather)
 @agent.tool_plain
 async def get_current_weather_tool(city: str) -> str:
     """Obtient la météo actuelle pour une ville donnée."""
-    logger.info(f"🌤️ Météo actuelle: {city}")
-    return get_weather(city)
+    logger.info(f"🌤️ [MÉTÉO] Consultation météo actuelle pour: '{city}'")
+    res = get_weather(city)
+    logger.info(f"🌤️ [MÉTÉO] Résultat pour {city}: {'Succès' if '❌' not in res else 'Erreur'}")
+    return res
 
 @agent.tool_plain
 async def get_weather_forecast_tool(city: str, days: int = 3) -> str:
     """Obtient les prévisions météo pour les prochains jours (y compris demain)."""
-    logger.info(f"📅 Prévisions météo: {city} ({days} jours)")
-    return get_weather_forecast(city, days)
+    logger.info(f"📅 [MÉTÉO] Prévisions demandées pour '{city}' ({days} jours)")
+    res = get_weather_forecast(city, days)
+    logger.info(f"📅 [MÉTÉO] Prévisions récupérées pour {city}")
+    return res
 
 @agent.tool_plain
 async def compare_cities_weather_tool(cities: str) -> str:
     """Compare la météo entre plusieurs villes (ex: 'Lagos, Nairobi')."""
-    logger.info(f"⚖️ Comparaison météo: {cities}")
-    return compare_weather_tool(cities)
+    logger.info(f"⚖️ [MÉTÉO] Comparaison demandée: '{cities}'")
+    res = compare_weather_tool(cities)
+    logger.info("⚖️ [MÉTÉO] Comparaison terminée")
+    return res
 
 # 3. Email avec Confirmation Obligatoire et Liste Blanche
 @agent.tool_plain
@@ -119,8 +148,10 @@ async def prepare_email_draft_tool(subject: str, message: str, receiver_email: O
     Prépare et affiche un brouillon d'email sans l'envoyer.
     L'agent DOIT TOUJOURS appeler cet outil en premier et attendre la confirmation 'OUI' de l'utilisateur.
     """
-    logger.info(f"📝 Préparation brouillon email: {subject}")
-    return create_email_draft(subject=subject, message=message, receiver_email=receiver_email)
+    logger.info(f"📝 [EMAIL] Préparation du brouillon: Sujet='{subject}', Destinataire='{receiver_email or allowed_email}'")
+    res = create_email_draft(subject=subject, message=message, receiver_email=receiver_email)
+    logger.info(f"📝 [EMAIL] Brouillon généré avec succès")
+    return res
 
 @agent.tool_plain
 async def send_email_tool(confirmation: str, subject: str, message: str, receiver_email: Optional[str] = None) -> str:
@@ -128,25 +159,35 @@ async def send_email_tool(confirmation: str, subject: str, message: str, receive
     Envoie l'email après accord explicite. Le paramètre 'confirmation' doit valoir 'oui', 'yes' ou 'confirmer'.
     L'agent ne doit appeler cet outil QUE si l'utilisateur a confirmé après avoir lu le brouillon.
     """
-    logger.info(f"📧 Envoi email: confirmation='{confirmation}', sujet='{subject}'")
-    return send_email(receiver_email=receiver_email, subject=subject, message=message, confirmation=confirmation)
+    logger.info(f"📧 [EMAIL] Tentative d'expédition - Confirmation reçue: '{confirmation}', Destinataire: '{receiver_email or allowed_email}'")
+    res = send_email(receiver_email=receiver_email, subject=subject, message=message, confirmation=confirmation)
+    logger.info(f"📧 [EMAIL] Résultat d'expédition: {res}")
+    return res
 
 # 4. Calendrier avec Confirmation Obligatoire (Google Calendar)
 @agent.tool_plain
 async def get_todays_calendar_tool() -> str:
     """Affiche les événements prévus aujourd'hui dans l'agenda."""
-    return get_todays_events()
+    logger.info("📅 [CALENDAR] Consultation des événements d'aujourd'hui")
+    res = get_todays_events()
+    logger.info(f"📅 [CALENDAR] Réponse: {res[:80]}...")
+    return res
 
 @agent.tool_plain
 async def get_upcoming_calendar_tool(days: int = 7) -> str:
     """Affiche les événements des prochains jours dans l'agenda."""
-    return get_upcoming_events(days)
+    logger.info(f"📆 [CALENDAR] Consultation des événements à venir ({days} jours)")
+    res = get_upcoming_events(days)
+    logger.info(f"📆 [CALENDAR] Réponse: {res[:80]}...")
+    return res
 
 @agent.tool_plain
 async def create_calendar_event_tool(title: str, date: str, start_time: str, end_time: str, description: str = "") -> str:
     """Crée un nouvel événement dans l'agenda (date au format YYYY-MM-DD, heures HH:MM)."""
-    logger.info(f"📅 Création événement: {title} le {date}")
-    return create_event(title, date, start_time, end_time, description)
+    logger.info(f"📅 [CALENDAR] Création d'événement: '{title}' le {date} ({start_time} - {end_time})")
+    res = create_event(title, date, start_time, end_time, description)
+    logger.info(f"📅 [CALENDAR] Résultat création: {res}")
+    return res
 
 @agent.tool_plain
 async def update_calendar_event_tool(event_id: str, title: Optional[str] = None, date: Optional[str] = None,
@@ -157,8 +198,10 @@ async def update_calendar_event_tool(event_id: str, title: Optional[str] = None,
     CONFIRMATION OBLIGATOIRE : L'agent doit d'abord demander l'accord de l'utilisateur.
     Si confirmation != 'oui', l'action est suspendue et le récapitulatif est présenté.
     """
-    logger.info(f"✏️ Modification événement {event_id} (confirmation={confirmation})")
-    return update_event(event_id, title, date, start_time, end_time, description, confirmation)
+    logger.info(f"✏️ [CALENDAR] Modification événement ID={event_id} (confirmation='{confirmation}')")
+    res = update_event(event_id, title, date, start_time, end_time, description, confirmation)
+    logger.info(f"✏️ [CALENDAR] Résultat modification: {res[:80]}...")
+    return res
 
 @agent.tool_plain
 async def delete_calendar_event_tool(event_id: str, confirmation: str = "") -> str:
@@ -167,46 +210,60 @@ async def delete_calendar_event_tool(event_id: str, confirmation: str = "") -> s
     CONFIRMATION OBLIGATOIRE : L'agent doit d'abord demander confirmation à l'utilisateur.
     Si confirmation != 'oui', l'action est suspendue.
     """
-    logger.info(f"🗑️ Suppression événement {event_id} (confirmation={confirmation})")
-    return delete_event(event_id, confirmation)
+    logger.info(f"🗑️ [CALENDAR] Suppression événement ID={event_id} (confirmation='{confirmation}')")
+    res = delete_event(event_id, confirmation)
+    logger.info(f"🗑️ [CALENDAR] Résultat suppression: {res}")
+    return res
 
 # 5. Notion
 @agent.tool_plain
 async def search_notion_pages_tool(query: str = "") -> str:
     """Recherche des pages et bases de données Notion par mot-clé."""
-    logger.info(f"📚 Recherche Notion: {query}")
-    return _search_notion(query)
+    logger.info(f"📚 [NOTION] Recherche de pages pour: '{query}'")
+    res = _search_notion(query)
+    logger.info(f"📚 [NOTION] Résultat recherche: {'Succès' if '❌' not in res else 'Erreur'}")
+    return res
 
 @agent.tool_plain
 async def read_notion_page_tool(page_id: str) -> str:
     """Lit le texte d'une page Notion à partir de son ID."""
-    logger.info(f"📖 Lecture Notion ID: {page_id}")
-    return _read_notion(page_id)
+    logger.info(f"📖 [NOTION] Lecture de la page ID: '{page_id}'")
+    res = _read_notion(page_id)
+    logger.info(f"📖 [NOTION] Lecture terminée (longueur: {len(res)} caractères)")
+    return res
 
 @agent.tool_plain
 async def create_notion_page_tool(title: str, content: str = "", parent_page_id: str = "") -> str:
     """Crée une nouvelle page dans Notion."""
-    logger.info(f"📝 Création page Notion: {title}")
-    return _create_notion(title, content, parent_page_id)
+    logger.info(f"📝 [NOTION] Création d'une page: '{title}'")
+    res = _create_notion(title, content, parent_page_id)
+    logger.info(f"📝 [NOTION] Résultat création: {res[:80]}...")
+    return res
 
 @agent.tool_plain
 async def append_to_notion_page_tool(page_id: str, content: str) -> str:
     """Ajoute du contenu à une page Notion existante."""
-    logger.info(f"➕ Ajout contenu Notion: {page_id}")
-    return _append_notion(page_id, content)
+    logger.info(f"➕ [NOTION] Ajout de contenu à la page ID: '{page_id}'")
+    res = _append_notion(page_id, content)
+    logger.info(f"➕ [NOTION] Résultat ajout: {res}")
+    return res
 
 # 6. Google Drive
 @agent.tool_plain
 async def search_google_drive_tool(query: str, max_results: int = 5) -> str:
     """Recherche des documents Google Docs et fichiers texte sur Google Drive."""
-    logger.info(f"📁 Recherche Google Drive: {query}")
-    return _search_drive(query, max_results)
+    logger.info(f"📁 [DRIVE] Recherche de fichiers: '{query}' (max_results={max_results})")
+    res = _search_drive(query, max_results)
+    logger.info(f"📁 [DRIVE] Recherche terminée ({'Succès' if '❌' not in res else 'Erreur'})")
+    return res
 
 @agent.tool_plain
 async def read_google_drive_file_tool(file_id: str) -> str:
     """Lit le texte intégral d'un Google Doc ou fichier texte à partir de son ID."""
-    logger.info(f"📄 Lecture Google Drive ID: {file_id}")
-    return _read_drive(file_id)
+    logger.info(f"📄 [DRIVE] Lecture du fichier ID: '{file_id}'")
+    res = _read_drive(file_id)
+    logger.info(f"📄 [DRIVE] Lecture terminée ({'Succès' if '❌' not in res else 'Erreur'})")
+    return res
 
 # =====================================================================
 # INSTRUCTIONS SYSTÈME DE L'AGENT
